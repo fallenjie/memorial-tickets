@@ -983,6 +983,16 @@
       });
     }
 
+    // ========== XSS Escape Helper ==========
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+    }
+
     // ========== UUID Generator ==========
     function generateUUID() {
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -999,6 +1009,65 @@
     let searchQuery = '';
     let currentTicketId = null;
     let pendingImageBlob = null;
+    let loadingCount = 0;
+
+    // ========== Loading / Toast / InlineError Utilities ==========
+    function showLoading(show) {
+      if (show) {
+        loadingCount++;
+        let overlay = document.getElementById('loadingOverlay');
+        if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'loadingOverlay';
+          overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:center;justify-content:center;';
+          overlay.innerHTML = '<div style="background:white;border-radius:12px;padding:24px 40px;font-family:var(--font-zh);font-size:16px;color:#333;">处理中...</div>';
+          document.body.appendChild(overlay);
+        }
+        overlay.style.display = 'flex';
+      } else {
+        loadingCount = Math.max(0, loadingCount - 1);
+        if (loadingCount === 0) {
+          const overlay = document.getElementById('loadingOverlay');
+          if (overlay) overlay.style.display = 'none';
+        }
+      }
+    }
+
+    let toastTimer = null;
+    function showToast(msg) {
+      let el = document.getElementById('toastMsg');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'toastMsg';
+        el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.75);color:white;padding:10px 20px;border-radius:20px;font-family:var(--font-zh);font-size:14px;z-index:10000;transition:opacity 0.3s;';
+        document.body.appendChild(el);
+      }
+      el.textContent = msg;
+      el.style.opacity = '1';
+      if (toastTimer) clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { el.style.opacity = '0'; }, 2500);
+    }
+
+    function showInlineError(inputId, msg) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      let err = input._inlineError;
+      if (!err) {
+        err = document.createElement('div');
+        err.style.cssText = 'color:#ff3b30;font-size:12px;margin-top:4px;font-family:var(--font-zh);';
+        err.className = 'inline-error';
+        input.parentNode.appendChild(err);
+        input._inlineError = err;
+      }
+      err.textContent = msg;
+      input.style.borderColor = '#ff3b30';
+    }
+
+    function clearInlineErrors() {
+      document.querySelectorAll('.inline-error').forEach(el => el.remove());
+      document.querySelectorAll('[id^="ticketName"], [id^="ticketType"]').forEach(el => el.style.borderColor = '');
+      document.querySelectorAll('input[type="text"], select').forEach(el => { el.style.borderColor = ''; });
+    }
     let pendingCroppedBlob = null;
     let cropRatio = '2:1';
     let cropCtx = null;
@@ -1045,7 +1114,9 @@
         if (!ticket) return;
 
         const img = document.getElementById('detailImage');
-        img.src = URL.createObjectURL(ticket.thumbnailBlob);
+        const objectUrl = URL.createObjectURL(ticket.thumbnailBlob);
+        img.onload = () => URL.revokeObjectURL(objectUrl);
+        img.src = objectUrl;
         document.getElementById('detailTitle').textContent = ticket.name;
 
         const typeMap = { movie: '电影', show: '演出', other: '其他' };
@@ -1094,15 +1165,17 @@
       grid.innerHTML = filtered.map(ticket => {
         const hue = 35 + Math.random() * 20 - 10;
         const light = 83 + Math.random() * 10 - 5;
+        const escapedName = escapeHtml(ticket.name);
+        const escapedMood = escapeHtml(ticket.mood);
         return `
           <div class="ticket-card" onclick="showDetailPage('${ticket.id}')">
             <div class="ticket-preview">
-              <img src="${URL.createObjectURL(ticket.thumbnailBlob)}" alt="${ticket.name}">
+              <img src="${URL.createObjectURL(ticket.thumbnailBlob)}" alt="${escapedName}">
             </div>
             <div class="ticket-info">
-              <div class="ticket-name">${ticket.name}</div>
+              <div class="ticket-name">${escapedName}</div>
               <div class="ticket-date">${formatDate(ticket.createdAt)}</div>
-              ${ticket.mood ? `<span class="mood-badge">${ticket.mood}</span>` : ''}
+              ${ticket.mood ? `<span class="mood-badge">${escapedMood}</span>` : ''}
             </div>
           </div>
         `;
@@ -1262,30 +1335,38 @@
     function submitType() {
       const name = document.getElementById('ticketName').value.trim();
       const type = document.getElementById('ticketType').value;
+      clearInlineErrors();
 
       if (!name) {
-        alert('请输入票根名称');
+        showInlineError('ticketName', '请输入票根名称');
         return;
       }
       if (!type) {
-        alert('请选择票根类型');
+        showInlineError('ticketType', '请选择票根类型');
         return;
       }
 
       closeTypeModal();
 
-      pendingTicketData = { name, type };
-      openNoteModal();
+      const pendingTicketData = { name, type };
+      openNoteModal(pendingTicketData);
     }
 
     // ========== Note Modal ==========
     let pendingTicketData = null;
 
-    function openNoteModal() {
+    let pendingTicketData = null;
+
+    function openNoteModal(ticketData) {
+      pendingTicketData = ticketData;
       document.getElementById('noteText').value = '';
       document.getElementById('charCount').textContent = '0';
       document.querySelectorAll('input[name="mood"]').forEach(r => r.checked = false);
       document.querySelectorAll('input[name="attendees"]').forEach(r => r.checked = false);
+      clearInlineErrors();
+      // Reset save button to creation flow handler
+      const saveBtn = document.querySelector('#noteModal .btn-primary');
+      if (saveBtn) saveBtn.setAttribute('onclick', 'submitNote()');
       document.getElementById('noteModal').classList.add('active');
     }
 
@@ -1312,18 +1393,20 @@
     async function saveTicket(note, mood, attendees) {
       if (!pendingTicketData || !pendingCroppedBlob) return;
 
+      showLoading(true);
       try {
         const id = generateUUID();
         const now = Date.now();
 
-        // Create thumbnail
+        // Create thumbnail using canvas.toDataURL to avoid createObjectURL memory leak
         const thumbCanvas = document.createElement('canvas');
         const thumbCtx = thumbCanvas.getContext('2d');
         const img = new Image();
 
+        const imgSrc = URL.createObjectURL(pendingCroppedBlob);
         await new Promise((resolve) => {
-          img.onload = resolve;
-          img.src = URL.createObjectURL(pendingCroppedBlob);
+          img.onload = () => { URL.revokeObjectURL(imgSrc); resolve(); };
+          img.src = imgSrc;
         });
 
         const maxSide = 400;
@@ -1346,9 +1429,9 @@
         thumbCanvas.height = thumbH;
         thumbCtx.drawImage(img, 0, 0, thumbW, thumbH);
 
-        const thumbnailBlob = await new Promise(resolve => {
-          thumbCanvas.toBlob(resolve, 'image/jpeg', 0.8);
-        });
+        // Use canvas.toDataURL + fetch -> blob (avoids createObjectURL for thumbnail)
+        const thumbnailDataUrl = thumbCanvas.toDataURL('image/jpeg', 0.8);
+        const thumbnailBlob = await (await fetch(thumbnailDataUrl)).blob();
 
         const ticket = {
           id,
@@ -1367,10 +1450,12 @@
         pendingTicketData = null;
         pendingCroppedBlob = null;
 
+        showLoading(false);
         showListPage();
       } catch (err) {
         console.error('Failed to save ticket:', err);
-        alert('保存失败');
+        showLoading(false);
+        showToast('保存失败');
       }
     }
 
@@ -1396,9 +1481,13 @@
       document.querySelectorAll('input[name="attendees"]').forEach(r => {
         r.checked = r.value === ticket.attendees;
       });
+
+      // Wire save button to edit handler
+      const saveBtn = document.querySelector('#noteModal .btn-primary');
+      if (saveBtn) saveBtn.setAttribute('onclick', 'submitNoteEdit()');
     }
 
-    async function submitNote() {
+    async function submitNoteEdit() {
       const note = document.getElementById('noteText').value.trim();
       const mood = document.querySelector('input[name="mood"]:checked')?.value || '';
       const attendees = document.querySelector('input[name="attendees"]:checked')?.value || '';
@@ -1415,29 +1504,33 @@
         showDetailPage(currentTicketId);
       } catch (err) {
         console.error('Failed to update ticket:', err);
-        alert('更新失败');
+        showToast('更新失败');
       }
     }
 
     async function deleteTicket() {
       if (!confirm('确定要删除这张票根吗？')) return;
 
+      showLoading(true);
       try {
         await remove(currentDb, currentTicketId);
+        showLoading(false);
         showListPage();
       } catch (err) {
         console.error('Failed to delete ticket:', err);
-        alert('删除失败');
+        showLoading(false);
+        showToast('删除失败');
       }
     }
 
     // ========== Export ==========
     document.getElementById('exportBtn').addEventListener('click', async () => {
       if (tickets.length === 0) {
-        alert('暂无票根可导出');
+        showToast('暂无票根可导出');
         return;
       }
 
+      showLoading(true);
       try {
         const zip = new JSZip();
 
@@ -1466,9 +1559,11 @@
         a.download = `memorial_tickets_${formatDate(Date.now())}.zip`;
         a.click();
         URL.revokeObjectURL(url);
+        showLoading(false);
       } catch (err) {
         console.error('Export failed:', err);
-        alert('导出失败');
+        showLoading(false);
+        showToast('导出失败');
       }
     });
 
@@ -1514,7 +1609,7 @@
 
     init();
 
-    console.log('DEV_COMPLETE');
+
   </script>
 </body>
 </html>
