@@ -1,0 +1,1520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>纪念票夹</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+KuaiLe&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #F7F8FA;
+      --card: #FFFFFF;
+      --accent: #007AFF;
+      --radius: 12px;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+      --font-zh: 'ZCOOL KuaiLe', cursive;
+      --font-title: 'Ma Shan Zheng', cursive;
+    }
+
+    body {
+      font-family: var(--font-zh);
+      background: var(--bg);
+      min-height: 100vh;
+      padding-bottom: 80px;
+      color: #333;
+    }
+
+    /* ========== Header ========== */
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 56px;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 100;
+    }
+
+    .header h1 {
+      font-family: var(--font-title);
+      font-size: 24px;
+      color: #333;
+    }
+
+    .header-btn {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-family: var(--font-zh);
+      font-size: 14px;
+      cursor: pointer;
+      padding: 8px 12px;
+      border-radius: 8px;
+    }
+
+    .header-btn:active {
+      background: rgba(0,122,255,0.1);
+    }
+
+    /* ========== Main Content ========== */
+    .main {
+      padding-top: 72px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-left: 16px;
+      padding-right: 16px;
+    }
+
+    /* ========== TabBar ========== */
+    .tabbar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 64px;
+      background: var(--card);
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .tabbar-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: #999;
+      text-decoration: none;
+      font-size: 12px;
+      padding: 8px 24px;
+      border-radius: 8px;
+      transition: color 0.2s;
+    }
+
+    .tabbar-item.active {
+      color: var(--accent);
+    }
+
+    .tabbar-item svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    /* ========== Search & Filter ========== */
+    .search-bar {
+      margin-bottom: 16px;
+    }
+
+    .search-bar input {
+      width: 100%;
+      height: 44px;
+      border: none;
+      border-radius: var(--radius);
+      background: var(--card);
+      box-shadow: var(--shadow);
+      padding: 0 16px;
+      font-family: var(--font-zh);
+      font-size: 14px;
+      outline: none;
+    }
+
+    .search-bar input::placeholder {
+      color: #aaa;
+    }
+
+    .filter-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .filter-tab {
+      flex-shrink: 0;
+      padding: 8px 16px;
+      border-radius: 20px;
+      border: none;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      font-family: var(--font-zh);
+      font-size: 14px;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .filter-tab.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    /* ========== Ticket Grid ========== */
+    .ticket-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+    }
+
+    @media (min-width: 768px) {
+      .ticket-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (min-width: 1024px) {
+      .ticket-grid {
+        grid-template-columns: repeat(4, 1fr);
+      }
+    }
+
+    /* ========== Ticket Card ========== */
+    .ticket-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .ticket-card:active {
+      transform: scale(0.98);
+    }
+
+    .ticket-preview {
+      position: relative;
+      padding-top: 66.67%;
+      overflow: hidden;
+    }
+
+    .ticket-preview img {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .ticket-info {
+      padding: 12px;
+    }
+
+    .ticket-name {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .ticket-date {
+      font-size: 12px;
+      color: #999;
+      margin-bottom: 8px;
+    }
+
+    .mood-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 11px;
+      background: rgba(0,122,255,0.1);
+      color: var(--accent);
+    }
+
+    /* ========== Empty State ========== */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      text-align: center;
+    }
+
+    .empty-state svg {
+      width: 200px;
+      height: 160px;
+      margin-bottom: 24px;
+    }
+
+    .empty-state p {
+      font-size: 16px;
+      color: #999;
+      margin-bottom: 20px;
+    }
+
+    .empty-state button {
+      padding: 12px 32px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 24px;
+      font-family: var(--font-zh);
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    /* ========== Upload Page ========== */
+    .upload-page {
+      display: none;
+    }
+
+    .upload-page.active {
+      display: block;
+    }
+
+    .upload-zone {
+      border: 2px dashed #ddd;
+      border-radius: var(--radius);
+      padding: 40px 20px;
+      text-align: center;
+      background: var(--card);
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .upload-zone.dragover {
+      border-color: var(--accent);
+    }
+
+    .upload-zone svg {
+      width: 64px;
+      height: 64px;
+      color: #ccc;
+      margin-bottom: 16px;
+    }
+
+    .upload-zone p {
+      color: #999;
+      margin-bottom: 12px;
+    }
+
+    .upload-zone-btn {
+      display: inline-block;
+      padding: 10px 24px;
+      background: var(--accent);
+      color: white;
+      border-radius: 20px;
+      font-family: var(--font-zh);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .upload-zone input {
+      display: none;
+    }
+
+    /* ========== Modal ========== */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 200;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background: var(--card);
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 500px;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .modal-header h3 {
+      font-size: 18px;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      color: #999;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      padding: 16px;
+    }
+
+    .modal-footer {
+      padding: 16px;
+      border-top: 1px solid #eee;
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-family: var(--font-zh);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #666;
+    }
+
+    /* ========== Crop Modal ========== */
+    .crop-container {
+      position: relative;
+      width: 100%;
+      max-height: 400px;
+      overflow: hidden;
+      background: #000;
+    }
+
+    .crop-container canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 400px;
+      margin: 0 auto;
+    }
+
+    .crop-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+    }
+
+    .crop-ratios {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    .crop-ratio-btn {
+      padding: 8px 16px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: white;
+      font-family: var(--font-zh);
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .crop-ratio-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* ========== Type Select ========== */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .form-group select {
+      width: 100%;
+      height: 44px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-family: var(--font-zh);
+      font-size: 14px;
+      outline: none;
+    }
+
+    /* ========== Note Form ========== */
+    .note-form {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .note-form h3 {
+      font-size: 18px;
+      margin-bottom: 16px;
+    }
+
+    .note-form textarea {
+      width: 100%;
+      height: 100px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      font-family: var(--font-zh);
+      font-size: 14px;
+      resize: none;
+      outline: none;
+    }
+
+    .char-count {
+      text-align: right;
+      font-size: 12px;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    .mood-group, .attendees-group {
+      margin-top: 16px;
+    }
+
+    .mood-group h4, .attendees-group h4 {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+
+    .radio-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .radio-item {
+      position: relative;
+    }
+
+    .radio-item input {
+      display: none;
+    }
+
+    .radio-item label {
+      display: inline-block;
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      border-radius: 20px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .radio-item input:checked + label {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: white;
+    }
+
+    /* ========== Detail Page ========== */
+    .detail-page {
+      display: none;
+    }
+
+    .detail-page.active {
+      display: block;
+    }
+
+    .detail-ticket {
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .detail-ticket img {
+      width: 100%;
+      border-radius: var(--radius);
+    }
+
+    .detail-info {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+
+    .detail-info h2 {
+      font-family: var(--font-title);
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .detail-meta {
+      font-size: 14px;
+      color: #999;
+      margin-bottom: 16px;
+    }
+
+    .detail-note {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+
+    .detail-note p {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .detail-tags {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .detail-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .detail-actions .btn {
+      flex: 1;
+      text-align: center;
+    }
+
+    /* ========== Retro Ticket ========== */
+    .retro-ticket {
+      position: relative;
+      background: hsl(var(--hue), 50%, 88%);
+      padding: 20px;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .retro-ticket::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background:
+        repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px),
+        repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px),
+        repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(0,0,0,0.02) 2px, rgba(0,0,0,0.02) 4px);
+      pointer-events: none;
+    }
+
+    .retro-ticket .ticket-hole {
+      position: absolute;
+      left: 12px;
+      width: 8px;
+      height: 8px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 50%;
+    }
+
+    .retro-ticket .ticket-content {
+      position: relative;
+      padding-left: 20px;
+    }
+
+    .retro-ticket .ticket-title {
+      font-family: var(--font-title);
+      font-size: 24px;
+      margin-bottom: 8px;
+    }
+
+    .retro-ticket .ticket-date-small {
+      font-size: 12px;
+      color: rgba(0,0,0,0.6);
+    }
+
+    .ticket-tear-edge {
+      clip-path: polygon(
+        0% 5px, 5px 0%, calc(100% - 5px) 0%, 100% 5px,
+        100% calc(100% - 5px), calc(100% - 5px) 100%, 5px 100%, 0% calc(100% - 5px)
+      );
+    }
+
+    /* ========== List Page ========== */
+    .list-page {
+      display: block;
+    }
+
+    .list-page.hidden {
+      display: none;
+    }
+
+    /* ========== Page Transitions ========== */
+    .page {
+      display: none;
+    }
+
+    .page.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    /* ========== Hidden ========== */
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <h1>纪念票夹</h1>
+    <button class="header-btn" id="exportBtn">导出全部</button>
+  </header>
+
+  <!-- Main Content -->
+  <main class="main">
+    <!-- List Page -->
+    <div class="page list-page active" id="listPage">
+      <div class="search-bar">
+        <input type="text" placeholder="搜索票根名称或备注..." id="searchInput">
+      </div>
+      <div class="filter-tabs">
+        <button class="filter-tab active" data-type="all">全部</button>
+        <button class="filter-tab" data-type="movie">电影</button>
+        <button class="filter-tab" data-type="show">演出</button>
+        <button class="filter-tab" data-type="other">其他</button>
+      </div>
+      <div class="ticket-grid" id="ticketGrid"></div>
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 200 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="30" y="20" width="140" height="100" rx="8" fill="#F0E2C0" stroke="#D4C4A0" stroke-width="2"/>
+          <circle cx="50" cy="30" r="4" fill="rgba(0,0,0,0.3)"/>
+          <circle cx="50" cy="50" r="4" fill="rgba(0,0,0,0.3)"/>
+          <circle cx="50" cy="70" r="4" fill="rgba(0,0,0,0.3)"/>
+          <rect x="70" y="35" width="80" height="8" rx="4" fill="#D4C4A0"/>
+          <rect x="70" y="55" width="60" height="6" rx="3" fill="#E8DCC0"/>
+          <rect x="70" y="70" width="70" height="6" rx="3" fill="#E8DCC0"/>
+          <path d="M30 40 L25 45 L30 50" stroke="#D4C4A0" stroke-width="2"/>
+          <path d="M170 40 L175 45 L170 50" stroke="#D4C4A0" stroke-width="2"/>
+          <path d="M30 90 L25 95 L30 100" stroke="#D4C4A0" stroke-width="2"/>
+          <path d="M170 90 L175 95 L170 100" stroke="#D4C4A0" stroke-width="2"/>
+        </svg>
+        <p>还没有收藏任何票根</p>
+        <button onclick="showUploadPage()">添加第一张票根</button>
+      </div>
+    </div>
+
+    <!-- Upload Page -->
+    <div class="page upload-page" id="uploadPage">
+      <div class="upload-zone" id="uploadZone">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p>点击上传或拖拽票根图片</p>
+        <span class="upload-zone-btn">选择图片</span>
+        <input type="file" accept="image/*" capture="environment" id="fileInput">
+      </div>
+    </div>
+
+    <!-- Detail Page -->
+    <div class="page detail-page" id="detailPage">
+      <div class="detail-ticket">
+        <img id="detailImage" src="" alt="票根">
+      </div>
+      <div class="detail-info">
+        <h2 id="detailTitle"></h2>
+        <div class="detail-meta">
+          <span id="detailType"></span> · <span id="detailDate"></span>
+        </div>
+        <div class="detail-tags">
+          <span class="mood-badge" id="detailMood"></span>
+          <span class="mood-badge" id="detailAttendees"></span>
+        </div>
+        <div class="detail-note" id="detailNoteBox">
+          <p id="detailNote"></p>
+        </div>
+      </div>
+      <div class="detail-actions">
+        <button class="btn btn-secondary" onclick="editTicket()">编辑</button>
+        <button class="btn btn-primary" onclick="deleteTicket()">删除</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- TabBar -->
+  <nav class="tabbar">
+    <a href="#" class="tabbar-item active" data-page="list" onclick="showListPage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/>
+        <rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      <span>票夹</span>
+    </a>
+    <a href="#" class="tabbar-item" data-page="upload" onclick="showUploadPage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="16"/>
+        <line x1="8" y1="12" x2="16" y2="12"/>
+      </svg>
+      <span>上传</span>
+    </a>
+  </nav>
+
+  <!-- Crop Modal -->
+  <div class="modal" id="cropModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>裁剪票根</h3>
+        <button class="modal-close" onclick="closeCropModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="crop-container">
+          <canvas id="cropCanvas"></canvas>
+        </div>
+        <div class="crop-ratios">
+          <button class="crop-ratio-btn" data-ratio="2:1">2:1</button>
+          <button class="crop-ratio-btn" data-ratio="3:2">3:2</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeCropModal()">取消</button>
+        <button class="btn btn-primary" onclick="applyCrop()">确认裁剪</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Type Modal -->
+  <div class="modal" id="typeModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>选择票根类型</h3>
+        <button class="modal-close" onclick="closeTypeModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>票根名称</label>
+          <input type="text" id="ticketName" placeholder="请输入票根名称" style="width:100%;height:44px;border:1px solid #ddd;border-radius:8px;padding:0 12px;font-family:var(--font-zh);font-size:14px;outline:none;">
+        </div>
+        <div class="form-group">
+          <label>票根类型 *</label>
+          <select id="ticketType">
+            <option value="">请选择类型</option>
+            <option value="movie">电影</option>
+            <option value="show">演出</option>
+            <option value="other">其他</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeTypeModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitType()">继续</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Note Modal -->
+  <div class="modal" id="noteModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>添加情感备注</h3>
+        <button class="modal-close" onclick="closeNoteModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="note-form">
+          <div class="form-group">
+            <label>一句话回忆</label>
+            <textarea id="noteText" maxlength="140" placeholder="写下关于这张票根的回忆..."></textarea>
+            <div class="char-count"><span id="charCount">0</span>/140</div>
+          </div>
+          <div class="mood-group">
+            <h4>心情</h4>
+            <div class="radio-group">
+              <div class="radio-item">
+                <input type="radio" name="mood" id="mood1" value="开心">
+                <label for="mood1">开心</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="mood" id="mood2" value="感动">
+                <label for="mood2">感动</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="mood" id="mood3" value="兴奋">
+                <label for="mood3">兴奋</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="mood" id="mood4" value="平静">
+                <label for="mood4">平静</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="mood" id="mood5" value="遗憾">
+                <label for="mood5">遗憾</label>
+              </div>
+            </div>
+          </div>
+          <div class="attendees-group">
+            <h4>观演人数</h4>
+            <div class="radio-group">
+              <div class="radio-item">
+                <input type="radio" name="attendees" id="att1" value="单人">
+                <label for="att1">单人</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="attendees" id="att2" value="双人">
+                <label for="att2">双人</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="attendees" id="att3" value="三人">
+                <label for="att3">三人</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="attendees" id="att4" value="四人+">
+                <label for="att4">四人+</label>
+              </div>
+              <div class="radio-item">
+                <input type="radio" name="attendees" id="att5" value="家人">
+                <label for="att5">家人</label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeNoteModal(true)">跳过</button>
+        <button class="btn btn-primary" onclick="submitNote()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== IndexedDB Helper ==========
+    const DB_NAME = 'memorial_tickets_db';
+    const DB_VERSION = 1;
+    const STORE_NAME = 'tickets';
+
+    function openDB() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(STORE_NAME)) {
+            db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+          }
+        };
+      });
+    }
+
+    function getAll(db) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.getAll();
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    function get(db, id) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readonly');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.get(id);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    function put(db, data) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.put(data);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+      });
+    }
+
+    function remove(db, id) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, 'readwrite');
+        const store = tx.objectStore(STORE_NAME);
+        const request = store.delete(id);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve();
+      });
+    }
+
+    // ========== UUID Generator ==========
+    function generateUUID() {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+
+    // ========== State ==========
+    let currentDb = null;
+    let tickets = [];
+    let currentFilter = 'all';
+    let searchQuery = '';
+    let currentTicketId = null;
+    let pendingImageBlob = null;
+    let pendingCroppedBlob = null;
+    let cropRatio = '2:1';
+    let cropCtx = null;
+    let originalImage = null;
+
+    // ========== Page Navigation ==========
+    function showListPage() {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('listPage').classList.add('active');
+      document.querySelectorAll('.tabbar-item').forEach(t => t.classList.remove('active'));
+      document.querySelector('.tabbar-item[data-page="list"]').classList.add('active');
+      loadTickets();
+    }
+
+    function showUploadPage() {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('uploadPage').classList.add('active');
+      document.querySelectorAll('.tabbar-item').forEach(t => t.classList.remove('active'));
+      document.querySelector('.tabbar-item[data-page="upload"]').classList.add('active');
+    }
+
+    function showDetailPage(id) {
+      currentTicketId = id;
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('detailPage').classList.add('active');
+      loadTicketDetail(id);
+    }
+
+    // ========== Load Tickets ==========
+    async function loadTickets() {
+      try {
+        currentDb = await openDB();
+        tickets = await getAll(currentDb);
+        tickets.sort((a, b) => b.createdAt - a.createdAt);
+        renderTickets();
+      } catch (err) {
+        console.error('Failed to load tickets:', err);
+      }
+    }
+
+    async function loadTicketDetail(id) {
+      try {
+        const ticket = await get(currentDb, id);
+        if (!ticket) return;
+
+        const img = document.getElementById('detailImage');
+        img.src = URL.createObjectURL(ticket.thumbnailBlob);
+        document.getElementById('detailTitle').textContent = ticket.name;
+
+        const typeMap = { movie: '电影', show: '演出', other: '其他' };
+        document.getElementById('detailType').textContent = typeMap[ticket.type];
+        document.getElementById('detailDate').textContent = formatDate(ticket.createdAt);
+        document.getElementById('detailMood').textContent = ticket.mood || '未标记';
+        document.getElementById('detailAttendees').textContent = ticket.attendees || '未选择';
+
+        const noteBox = document.getElementById('detailNoteBox');
+        if (ticket.note) {
+          noteBox.style.display = 'block';
+          document.getElementById('detailNote').textContent = ticket.note;
+        } else {
+          noteBox.style.display = 'none';
+        }
+      } catch (err) {
+        console.error('Failed to load ticket detail:', err);
+      }
+    }
+
+    function renderTickets() {
+      const grid = document.getElementById('ticketGrid');
+      const empty = document.getElementById('emptyState');
+
+      let filtered = tickets;
+
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(t => t.type === currentFilter);
+      }
+
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(t =>
+          t.name.toLowerCase().includes(q) ||
+          (t.note && t.note.toLowerCase().includes(q))
+        );
+      }
+
+      if (filtered.length === 0) {
+        grid.innerHTML = '';
+        empty.style.display = 'flex';
+        return;
+      }
+
+      empty.style.display = 'none';
+      grid.innerHTML = filtered.map(ticket => {
+        const hue = 35 + Math.random() * 20 - 10;
+        const light = 83 + Math.random() * 10 - 5;
+        return `
+          <div class="ticket-card" onclick="showDetailPage('${ticket.id}')">
+            <div class="ticket-preview">
+              <img src="${URL.createObjectURL(ticket.thumbnailBlob)}" alt="${ticket.name}">
+            </div>
+            <div class="ticket-info">
+              <div class="ticket-name">${ticket.name}</div>
+              <div class="ticket-date">${formatDate(ticket.createdAt)}</div>
+              ${ticket.mood ? `<span class="mood-badge">${ticket.mood}</span>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function formatDate(timestamp) {
+      const d = new Date(timestamp);
+      return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    }
+
+    // ========== Upload Handling ==========
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+      uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploadZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) {
+        handleImageUpload(file);
+      }
+    });
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        handleImageUpload(file);
+      }
+    });
+
+    function handleImageUpload(file) {
+      pendingImageBlob = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        originalImage = new Image();
+        originalImage.onload = () => {
+          const ratio = originalImage.width / originalImage.height;
+          cropRatio = ratio > 1.6 ? '3:2' : '2:1';
+          initCropCanvas();
+          openCropModal();
+        };
+        originalImage.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // ========== Crop Modal ==========
+    function initCropCanvas() {
+      const canvas = document.getElementById('cropCanvas');
+      cropCtx = canvas.getContext('2d');
+
+      const maxWidth = 400;
+      const maxHeight = 400;
+      let drawWidth = originalImage.width;
+      let drawHeight = originalImage.height;
+
+      if (drawWidth > maxWidth) {
+        drawHeight = drawHeight * (maxWidth / drawWidth);
+        drawWidth = maxWidth;
+      }
+      if (drawHeight > maxHeight) {
+        drawWidth = drawWidth * (maxHeight / drawHeight);
+        drawHeight = maxHeight;
+      }
+
+      canvas.width = drawWidth;
+      canvas.height = drawHeight;
+      cropCtx.drawImage(originalImage, 0, 0, drawWidth, drawHeight);
+
+      document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.ratio === cropRatio);
+      });
+    }
+
+    function openCropModal() {
+      document.getElementById('cropModal').classList.add('active');
+    }
+
+    function closeCropModal() {
+      document.getElementById('cropModal').classList.remove('active');
+      pendingImageBlob = null;
+      originalImage = null;
+    }
+
+    document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        cropRatio = btn.dataset.ratio;
+        document.querySelectorAll('.crop-ratio-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
+
+    function applyCrop() {
+      const canvas = document.getElementById('cropCanvas');
+      const ratioParts = cropRatio.split(':');
+      const targetRatio = parseInt(ratioParts[0]) / parseInt(ratioParts[1]);
+
+      let srcX = 0, srcY = 0, srcW = originalImage.width, srcH = originalImage.height;
+
+      if (srcW / srcH > targetRatio) {
+        srcW = srcH * targetRatio;
+        srcX = (originalImage.width - srcW) / 2;
+      } else {
+        srcH = srcW / targetRatio;
+        srcY = (originalImage.height - srcH) / 2;
+      }
+
+      const maxDim = 1200;
+      let dstW = srcW;
+      let dstH = srcH;
+      if (dstW > maxDim) {
+        dstH = dstH * (maxDim / dstW);
+        dstW = maxDim;
+      }
+      if (dstH > maxDim) {
+        dstW = dstW * (maxDim / dstH);
+        dstH = maxDim;
+      }
+
+      const croppedCanvas = document.createElement('canvas');
+      croppedCanvas.width = dstW;
+      croppedCanvas.height = dstH;
+      const ctx = croppedCanvas.getContext('2d');
+      ctx.drawImage(originalImage, srcX, srcY, srcW, srcH, 0, 0, dstW, dstH);
+
+      croppedCanvas.toBlob((blob) => {
+        pendingCroppedBlob = blob;
+        closeCropModal();
+        openTypeModal();
+      }, 'image/jpeg', 0.85);
+    }
+
+    // ========== Type Modal ==========
+    function openTypeModal() {
+      document.getElementById('ticketName').value = '';
+      document.getElementById('ticketType').value = '';
+      document.getElementById('typeModal').classList.add('active');
+    }
+
+    function closeTypeModal() {
+      document.getElementById('typeModal').classList.remove('active');
+      pendingCroppedBlob = null;
+    }
+
+    function submitType() {
+      const name = document.getElementById('ticketName').value.trim();
+      const type = document.getElementById('ticketType').value;
+
+      if (!name) {
+        alert('请输入票根名称');
+        return;
+      }
+      if (!type) {
+        alert('请选择票根类型');
+        return;
+      }
+
+      closeTypeModal();
+
+      pendingTicketData = { name, type };
+      openNoteModal();
+    }
+
+    // ========== Note Modal ==========
+    let pendingTicketData = null;
+
+    function openNoteModal() {
+      document.getElementById('noteText').value = '';
+      document.getElementById('charCount').textContent = '0';
+      document.querySelectorAll('input[name="mood"]').forEach(r => r.checked = false);
+      document.querySelectorAll('input[name="attendees"]').forEach(r => r.checked = false);
+      document.getElementById('noteModal').classList.add('active');
+    }
+
+    function closeNoteModal(skip = false) {
+      document.getElementById('noteModal').classList.remove('active');
+      if (skip) {
+        saveTicket(null, null, null);
+      }
+    }
+
+    document.getElementById('noteText').addEventListener('input', (e) => {
+      document.getElementById('charCount').textContent = e.target.value.length;
+    });
+
+    function submitNote() {
+      const note = document.getElementById('noteText').value.trim();
+      const mood = document.querySelector('input[name="mood"]:checked')?.value || '';
+      const attendees = document.querySelector('input[name="attendees"]:checked')?.value || '';
+
+      closeNoteModal();
+      saveTicket(note, mood, attendees);
+    }
+
+    async function saveTicket(note, mood, attendees) {
+      if (!pendingTicketData || !pendingCroppedBlob) return;
+
+      try {
+        const id = generateUUID();
+        const now = Date.now();
+
+        // Create thumbnail
+        const thumbCanvas = document.createElement('canvas');
+        const thumbCtx = thumbCanvas.getContext('2d');
+        const img = new Image();
+
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.src = URL.createObjectURL(pendingCroppedBlob);
+        });
+
+        const maxSide = 400;
+        let thumbW = img.width;
+        let thumbH = img.height;
+
+        if (thumbW > thumbH) {
+          if (thumbW > maxSide) {
+            thumbH = thumbH * (maxSide / thumbW);
+            thumbW = maxSide;
+          }
+        } else {
+          if (thumbH > maxSide) {
+            thumbW = thumbW * (maxSide / thumbH);
+            thumbH = maxSide;
+          }
+        }
+
+        thumbCanvas.width = thumbW;
+        thumbCanvas.height = thumbH;
+        thumbCtx.drawImage(img, 0, 0, thumbW, thumbH);
+
+        const thumbnailBlob = await new Promise(resolve => {
+          thumbCanvas.toBlob(resolve, 'image/jpeg', 0.8);
+        });
+
+        const ticket = {
+          id,
+          name: pendingTicketData.name,
+          type: pendingTicketData.type,
+          originalBlob: pendingCroppedBlob,
+          thumbnailBlob,
+          note: note || '',
+          mood: mood || '',
+          attendees: attendees || '',
+          createdAt: now,
+          updatedAt: now
+        };
+
+        await put(currentDb, ticket);
+        pendingTicketData = null;
+        pendingCroppedBlob = null;
+
+        showListPage();
+      } catch (err) {
+        console.error('Failed to save ticket:', err);
+        alert('保存失败');
+      }
+    }
+
+    // ========== Edit & Delete ==========
+    function editTicket() {
+      window.location.hash = `#edit/${currentTicketId}`;
+      showNoteEdit();
+    }
+
+    async function showNoteEdit() {
+      const ticket = await get(currentDb, currentTicketId);
+      if (!ticket) return;
+
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('noteModal').classList.add('active');
+
+      document.getElementById('noteText').value = ticket.note || '';
+      document.getElementById('charCount').textContent = ticket.note?.length || 0;
+
+      document.querySelectorAll('input[name="mood"]').forEach(r => {
+        r.checked = r.value === ticket.mood;
+      });
+      document.querySelectorAll('input[name="attendees"]').forEach(r => {
+        r.checked = r.value === ticket.attendees;
+      });
+    }
+
+    async function submitNote() {
+      const note = document.getElementById('noteText').value.trim();
+      const mood = document.querySelector('input[name="mood"]:checked')?.value || '';
+      const attendees = document.querySelector('input[name="attendees"]:checked')?.value || '';
+
+      try {
+        const ticket = await get(currentDb, currentTicketId);
+        ticket.note = note;
+        ticket.mood = mood;
+        ticket.attendees = attendees;
+        ticket.updatedAt = Date.now();
+        await put(currentDb, ticket);
+
+        closeNoteModal();
+        showDetailPage(currentTicketId);
+      } catch (err) {
+        console.error('Failed to update ticket:', err);
+        alert('更新失败');
+      }
+    }
+
+    async function deleteTicket() {
+      if (!confirm('确定要删除这张票根吗？')) return;
+
+      try {
+        await remove(currentDb, currentTicketId);
+        showListPage();
+      } catch (err) {
+        console.error('Failed to delete ticket:', err);
+        alert('删除失败');
+      }
+    }
+
+    // ========== Export ==========
+    document.getElementById('exportBtn').addEventListener('click', async () => {
+      if (tickets.length === 0) {
+        alert('暂无票根可导出');
+        return;
+      }
+
+      try {
+        const zip = new JSZip();
+
+        const metaData = tickets.map(t => ({
+          id: t.id,
+          name: t.name,
+          type: t.type,
+          note: t.note,
+          mood: t.mood,
+          attendees: t.attendees,
+          createdAt: t.createdAt,
+          updatedAt: t.updatedAt
+        }));
+
+        zip.file('data.json', JSON.stringify(metaData, null, 2));
+
+        for (const ticket of tickets) {
+          const ext = ticket.originalBlob.type === 'image/png' ? 'png' : 'jpg';
+          zip.file(`images/${ticket.id}.${ext}`, ticket.originalBlob);
+        }
+
+        const blob = await zip.generateAsync({ type: 'blob' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `memorial_tickets_${formatDate(Date.now())}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Export failed:', err);
+        alert('导出失败');
+      }
+    });
+
+    // ========== Search & Filter ==========
+    document.getElementById('searchInput').addEventListener('input', (e) => {
+      searchQuery = e.target.value.trim();
+      renderTickets();
+    });
+
+    document.querySelectorAll('.filter-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        currentFilter = tab.dataset.type;
+        renderTickets();
+      });
+    });
+
+    // ========== Hash Routing ==========
+    function handleHash() {
+      const hash = window.location.hash;
+      if (hash.startsWith('#detail/')) {
+        const id = hash.replace('#detail/', '');
+        showDetailPage(id);
+      } else if (hash.startsWith('#edit/')) {
+        const id = hash.replace('#edit/', '');
+        currentTicketId = id;
+        showNoteEdit();
+      } else if (hash === '#upload') {
+        showUploadPage();
+      } else {
+        showListPage();
+      }
+    }
+
+    window.addEventListener('hashchange', handleHash);
+
+    // ========== Init ==========
+    async function init() {
+      currentDb = await openDB();
+      handleHash();
+    }
+
+    init();
+
+    console.log('DEV_COMPLETE');
+  </script>
+</body>
+</html>
