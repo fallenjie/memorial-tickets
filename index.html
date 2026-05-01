@@ -1011,6 +1011,13 @@
     let pendingImageBlob = null;
     let loadingCount = 0;
 
+    // Blob URL memory leak prevention
+    let activeBlobUrls = [];
+    function revokeAllBlobUrls() {
+      activeBlobUrls.forEach(url => URL.revokeObjectURL(url));
+      activeBlobUrls = [];
+    }
+
     // ========== Loading / Toast / InlineError Utilities ==========
     function showLoading(show) {
       if (show) {
@@ -1162,15 +1169,18 @@
       }
 
       empty.style.display = 'none';
+      revokeAllBlobUrls();
       grid.innerHTML = filtered.map(ticket => {
         const hue = 35 + Math.random() * 20 - 10;
         const light = 83 + Math.random() * 10 - 5;
         const escapedName = escapeHtml(ticket.name);
         const escapedMood = escapeHtml(ticket.mood);
+        const blobUrl = URL.createObjectURL(ticket.thumbnailBlob);
+        activeBlobUrls.push(blobUrl);
         return `
           <div class="ticket-card" onclick="showDetailPage('${ticket.id}')">
             <div class="ticket-preview">
-              <img src="${URL.createObjectURL(ticket.thumbnailBlob)}" alt="${escapedName}">
+              <img src="${blobUrl}" alt="${escapedName}">
             </div>
             <div class="ticket-info">
               <div class="ticket-name">${escapedName}</div>
