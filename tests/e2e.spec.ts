@@ -255,8 +255,10 @@ test.describe('Upload Flow', () => {
     await expect(page.locator('#noteModal')).toHaveClass(/active/);
     await page.fill('#noteText', 'IMAX 特效震撼');
     await page.click('#noteModal .btn-primary');
-    await expect(page.locator('#listPage')).toHaveClass(/active/);
-    await expect(page.locator('.ticket-card')).toHaveCount(1, { timeout: 15000 });
+    await expect(page.locator('#listPage')).toHaveClass(/active/, { timeout: 10000 });
+    // Wait for ticket to render (async IndexedDB + DOM update)
+    await page.waitForSelector('.ticket-card', { timeout: 10000 });
+    await expect(page.locator('.ticket-card')).toHaveCount(1);
     await expect(page.locator('.ticket-name')).toContainText('阿凡达2');
   });
 
@@ -269,8 +271,10 @@ test.describe('Upload Flow', () => {
     await page.selectOption('#ticketType', 'other');
     await page.click('#typeModal .btn-primary');
     await page.click('#noteModal .btn-secondary');
-    await expect(page.locator('#listPage')).toHaveClass(/active/);
-    await expect(page.locator('.ticket-card')).toHaveCount(1, { timeout: 15000 });
+    await expect(page.locator('#listPage')).toHaveClass(/active/, { timeout: 10000 });
+    // Wait for ticket to render (async IndexedDB + DOM update)
+    await page.waitForSelector('.ticket-card', { timeout: 10000 });
+    await expect(page.locator('.ticket-card')).toHaveCount(1);
   });
 
   test('类型弹窗必填验证', async ({ page }) => {

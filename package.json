@@ -24,6 +24,7 @@
   "homepage": "https://github.com/fallenjie/memorial-tickets#readme",
   "devDependencies": {
     "@playwright/test": "^1.59.1",
-    "playwright": "^1.59.1"
+    "playwright": "^1.59.1",
+    "serve": "^14.2.6"
   }
 }
