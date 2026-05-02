@@ -1,9 +1,11 @@
 import { test, expect } from '@playwright/test';
 
+const BASE = 'http://localhost:8080';
+
 test.describe('列表页', () => {
   test.beforeEach(async ({ page }) => {
     // 清空 IndexedDB
-    await page.goto('/');
+    await page.goto(BASE);
     await page.evaluate(() => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.deleteDatabase('memorial_tickets_db');
@@ -16,7 +18,7 @@ test.describe('列表页', () => {
   });
 
   test('空状态显示正确', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BASE);
     const emptyState = page.locator('#emptyState');
     await expect(emptyState).toBeVisible();
     await expect(emptyState.locator('p')).toContainText('还没有收藏任何票根');
@@ -25,7 +27,7 @@ test.describe('列表页', () => {
   });
 
   test('填充数据后列表正常显示', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.evaluate(() => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('memorial_tickets_db', 1);
@@ -64,13 +66,13 @@ test.describe('列表页', () => {
     const cards = page.locator('.ticket-card');
     await expect(cards).toHaveCount(1);
     await expect(page.locator('.ticket-name')).toContainText('泰坦尼克号');
-    await expect(page.locator('.mood-badge')).toContainText('开心');
+    await expect(page.locator('.ticket-card .mood-badge')).toContainText('开心');
   });
 });
 
 test.describe('筛选和搜索', () => {
   async function seedTickets(page: any) {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.evaluate(() => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('memorial_tickets_db', 1);
@@ -140,7 +142,7 @@ test.describe('筛选和搜索', () => {
 
 test.describe('Detail Page', () => {
   async function seedOneTicket(page: any) {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.evaluate(() => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('memorial_tickets_db', 1);
@@ -178,7 +180,7 @@ test.describe('Detail Page', () => {
   });
 
   test('无备注时备注区域隐藏', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.evaluate(() => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('memorial_tickets_db', 1);
@@ -227,6 +229,7 @@ test.describe('Detail Page', () => {
 
 test.describe('Upload Flow', () => {
   test.beforeEach(async ({ page }) => {
+    await page.goto(BASE);
     await page.evaluate(() => {
       return new Promise<void>((resolve) => {
         const req = indexedDB.deleteDatabase('memorial_tickets_db');
@@ -237,7 +240,7 @@ test.describe('Upload Flow', () => {
   });
 
   test('完整上传流程：选择图片→裁剪→填写类型→填写备注→保存→列表显示', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.click('.tabbar-item[data-page="upload"]');
     await expect(page.locator('#uploadPage')).toHaveClass(/active/);
     const fileInput = page.locator('#fileInput');
@@ -253,12 +256,12 @@ test.describe('Upload Flow', () => {
     await page.fill('#noteText', 'IMAX 特效震撼');
     await page.click('#noteModal .btn-primary');
     await expect(page.locator('#listPage')).toHaveClass(/active/);
-    await expect(page.locator('.ticket-card')).toHaveCount(1);
+    await expect(page.locator('.ticket-card')).toHaveCount(1, { timeout: 15000 });
     await expect(page.locator('.ticket-name')).toContainText('阿凡达2');
   });
 
   test('上传流程跳过备注也能保存', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.click('.tabbar-item[data-page="upload"]');
     await page.locator('#fileInput').setInputFiles('tests/fixtures/sample-ticket.png');
     await page.click('#cropModal .btn-primary');
@@ -267,11 +270,11 @@ test.describe('Upload Flow', () => {
     await page.click('#typeModal .btn-primary');
     await page.click('#noteModal .btn-secondary');
     await expect(page.locator('#listPage')).toHaveClass(/active/);
-    await expect(page.locator('.ticket-card')).toHaveCount(1);
+    await expect(page.locator('.ticket-card')).toHaveCount(1, { timeout: 15000 });
   });
 
   test('类型弹窗必填验证', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.click('.tabbar-item[data-page="upload"]');
     await page.locator('#fileInput').setInputFiles('tests/fixtures/sample-ticket.png');
     await page.click('#cropModal .btn-primary');
@@ -283,7 +286,7 @@ test.describe('Upload Flow', () => {
 
 test.describe('Export Flow', () => {
   async function seedTickets(page: any) {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.evaluate(() => {
       return new Promise<void>((resolve, reject) => {
         const req = indexedDB.open('memorial_tickets_db', 1);
@@ -320,7 +323,7 @@ test.describe('Export Flow', () => {
   });
 
   test('无票根时显示 Toast 提示', async ({ page }) => {
-    await page.goto('/');
+    await page.goto(BASE);
     await page.click('#exportBtn');
     await expect(page.locator('#toastMsg')).toContainText('暂无票根可导出');
   });

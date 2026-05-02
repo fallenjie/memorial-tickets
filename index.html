@@ -1641,13 +1641,13 @@
       document.getElementById('charCount').textContent = e.target.value.length;
     });
 
-    function submitNote() {
+    async function submitNote() {
       const note = document.getElementById('noteText').value.trim();
       const mood = document.querySelector('input[name="mood"]:checked')?.value || '';
       const attendees = document.querySelector('input[name="attendees"]:checked')?.value || '';
 
       closeNoteModal();
-      saveTicket(note, mood, attendees);
+      await saveTicket(note, mood, attendees);
     }
 
     async function saveTicket(note, mood, attendees) {

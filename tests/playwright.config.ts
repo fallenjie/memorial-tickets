@@ -18,7 +18,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx serve -p 8080 .',
+    command: 'node_modules/.bin/serve -p 8080 .',
     url: 'http://localhost:8080',
     reuseExistingServer: !process.env.CI,
     timeout: 30000,
