@@ -1101,6 +1101,7 @@
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.getElementById('detailPage').classList.add('active');
       loadTicketDetail(id);
+      startParticleEffect(); // 启动粒子飘落特效
     }
 
     // ========== Load Tickets ==========
