@@ -748,7 +748,7 @@
         </svg>
         <p>点击上传或拖拽票根图片</p>
         <span class="upload-zone-btn">选择图片</span>
-        <input type="file" accept="image/*" capture="environment" id="fileInput">
+        <input type="file" accept="image/*" id="fileInput">
       </div>
     </div>
 
@@ -1228,31 +1228,113 @@
       }
     });
 
+    // 纠正方向后的 canvas（用于解决 iOS 竖拍照片方向错误）
+    let orientedCanvas = null;
+
     function handleImageUpload(file) {
+      if (!file || !file.type.startsWith('image/')) {
+        alert('请选择图片文件');
+        return;
+      }
       pendingImageBlob = file;
       const reader = new FileReader();
+      reader.onerror = () => alert('图片读取失败，请重试');
       reader.onload = (e) => {
         originalImage = new Image();
+        originalImage.onerror = () => alert('图片加载失败，请重试');
         originalImage.onload = () => {
-          const ratio = originalImage.width / originalImage.height;
-          cropRatio = ratio > 1.6 ? '3:2' : '2:1';
-          initCropCanvas();
-          openCropModal();
+          try {
+            const exif = getExifOrientation(file);
+            orientedCanvas = null;
+            if (exif > 1) {
+              orientedCanvas = applyExifOrientation(originalImage, exif);
+            }
+            const srcImg = orientedCanvas || originalImage;
+            const ratio = srcImg.width / srcImg.height;
+            cropRatio = ratio > 1.6 ? '3:2' : '2:1';
+            initCropCanvas(srcImg);
+            openCropModal();
+          } catch (err) {
+            console.error(err);
+            alert('图片处理失败，请重试');
+          }
         };
         originalImage.src = e.target.result;
       };
       reader.readAsDataURL(file);
     }
 
+    // 返回一个已绘制好方向的 OffscreenCanvas（或普通 Canvas）
+    function applyExifOrientation(img, exif) {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const { width, height } = img;
+      canvas.width = width;
+      canvas.height = height;
+      ctx.save();
+      switch (exif) {
+        case 2: ctx.translate(width, 0); ctx.scale(-1, 1); break;
+        case 3: ctx.translate(width, height); ctx.rotate(Math.PI); break;
+        case 4: ctx.translate(0, height); ctx.scale(1, -1); break;
+        case 5: ctx.translate(width, 0); ctx.scale(-1, 1); ctx.rotate(0.5 * Math.PI); break;
+        case 6: ctx.translate(width, 0); ctx.rotate(0.5 * Math.PI); break;
+        case 7: ctx.translate(width, 0); ctx.scale(-1, 1); ctx.rotate(-0.5 * Math.PI); break;
+        case 8: ctx.translate(0, height); ctx.rotate(-0.5 * Math.PI); break;
+        default: ctx.restore(); return null;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+      ctx.restore();
+      return canvas;
+    }
+
+    function getExifOrientation(file) {
+      try {
+        const view = new DataView(file.slice(0, 12));
+        if (view.getUint16(0) !== 0xFFD8) return -1;
+        const length = file.size;
+        let offset = 2;
+        while (offset < length) {
+          const marker = view.getUint16(offset, false);
+          offset += 2;
+          if (marker === 0xFFE1) {
+            const exifView = new DataView(file.slice(offset, offset + 4));
+            if (exifView.getUint32(0, false) !== 0x45786966) return -1;
+            const tiffView = new DataView(file.slice(offset + 6, offset + 12));
+            const little = tiffView.getUint16(0, false) === 0x4949;
+            if (tiffView.getUint32(4, little) !== 0x002A0000) return -1;
+            let ifdOffset = tiffView.getUint32(8, little);
+            const ifdView = new DataView(file.slice(offset + 6 + ifdOffset, offset + 6 + ifdOffset + 2));
+            const numEntries = ifdView.getUint16(0, little);
+            for (let i = 0; i < numEntries; i++) {
+              const entryOffset = offset + 6 + ifdOffset + 2 + i * 12;
+              const entryView = new DataView(file.slice(entryOffset, entryOffset + 12));
+              if (entryView.getUint16(0, little) === 0x0112) {
+                return entryView.getUint16(8, little);
+              }
+            }
+            return -1;
+          } else if ((marker & 0xFF00) !== 0xFF00) {
+            break;
+          } else {
+            offset += view.getUint16(offset, false);
+          }
+        }
+        return -1;
+      } catch (e) {
+        return -1;
+      }
+    }
+
     // ========== Crop Modal ==========
-    function initCropCanvas() {
+    function initCropCanvas(img) {
       const canvas = document.getElementById('cropCanvas');
       cropCtx = canvas.getContext('2d');
+      const srcImg = img || originalImage;
 
       const maxWidth = 400;
       const maxHeight = 400;
-      let drawWidth = originalImage.width;
-      let drawHeight = originalImage.height;
+      let drawWidth = srcImg.width;
+      let drawHeight = srcImg.height;
 
       if (drawWidth > maxWidth) {
         drawHeight = drawHeight * (maxWidth / drawWidth);
@@ -1265,7 +1347,7 @@
 
       canvas.width = drawWidth;
       canvas.height = drawHeight;
-      cropCtx.drawImage(originalImage, 0, 0, drawWidth, drawHeight);
+      cropCtx.drawImage(srcImg, 0, 0, drawWidth, drawHeight);
 
       document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.ratio === cropRatio);
@@ -1280,6 +1362,7 @@
       document.getElementById('cropModal').classList.remove('active');
       pendingImageBlob = null;
       originalImage = null;
+      orientedCanvas = null;
     }
 
     document.querySelectorAll('.crop-ratio-btn').forEach(btn => {
@@ -1294,15 +1377,16 @@
       const canvas = document.getElementById('cropCanvas');
       const ratioParts = cropRatio.split(':');
       const targetRatio = parseInt(ratioParts[0]) / parseInt(ratioParts[1]);
+      const srcImg = orientedCanvas || originalImage;
 
-      let srcX = 0, srcY = 0, srcW = originalImage.width, srcH = originalImage.height;
+      let srcX = 0, srcY = 0, srcW = srcImg.width, srcH = srcImg.height;
 
       if (srcW / srcH > targetRatio) {
         srcW = srcH * targetRatio;
-        srcX = (originalImage.width - srcW) / 2;
+        srcX = (srcImg.width - srcW) / 2;
       } else {
         srcH = srcW / targetRatio;
-        srcY = (originalImage.height - srcH) / 2;
+        srcY = (srcImg.height - srcH) / 2;
       }
 
       const maxDim = 1200;
@@ -1321,7 +1405,7 @@
       croppedCanvas.width = dstW;
       croppedCanvas.height = dstH;
       const ctx = croppedCanvas.getContext('2d');
-      ctx.drawImage(originalImage, srcX, srcY, srcW, srcH, 0, 0, dstW, dstH);
+      ctx.drawImage(srcImg, srcX, srcY, srcW, srcH, 0, 0, dstW, dstH);
 
       croppedCanvas.toBlob((blob) => {
         pendingCroppedBlob = blob;
