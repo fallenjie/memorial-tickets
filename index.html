@@ -1281,6 +1281,14 @@
         const ticket = await get(currentDb, id);
         if (!ticket) return;
 
+        // 随机泛黄色差 — 每张票根有轻微不同
+        const hueOffset = Math.floor(Math.random() * 20 - 10); // -10 ~ +10
+        const lightOffset = Math.floor(Math.random() * 8 - 4); // -4 ~ +4
+        const paperEl = document.querySelector('.retro-paper');
+        if (paperEl) {
+          paperEl.style.background = `hsl(36${hueOffset >= 0 ? '+' : ''}${hueOffset}, 55%, 88%${lightOffset >= 0 ? '+' : ''}${lightOffset}%)`;
+        }
+
         const img = document.getElementById('detailImage');
         const objectUrl = URL.createObjectURL(ticket.thumbnailBlob);
         img.onload = () => URL.revokeObjectURL(objectUrl);
